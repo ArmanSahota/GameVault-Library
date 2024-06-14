@@ -1,46 +1,38 @@
-const User = require("../models/User");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const Game = require('../models/game');
 
-exports.register = async (req, res) => {
+// Controller method to create a new game
+exports.createGame = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    
-    // Check if the email already exists in the database
-    const emailExist = await User.findOne({ email });
-    if (emailExist) return res.status(400).send("Email already exists");
+    // Destructure relevant fields from req.body
+    const {
+      game,
+      console,
+      model,
+      year,
+      price,
+      progress,
+      rating,
+      review
+    } = req.body;
 
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Create a new Game instance with userId automatically populated from req.user._id
+    const newGame = new Game({
+      userId: req.user._id, // Ensure userId is populated from req.user._id
+      game,
+      console,
+      model,
+      year,
+      price,
+      progress,
+      rating,
+      review
+    });
 
-    // Create a new user
-    const user = new User({ name, email, password: hashedPassword });
-
-    // Save the user to the database
-    const savedUser = await user.save();
-    res.send({ user: savedUser._id });
+    // Save the new game to the database
+    const savedGame = await newGame.save();
+    res.status(201).json(savedGame);
   } catch (err) {
-    res.status(400).send(err);
-  }
-};
-
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Check if the email exists in the database
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).send("Email not found");
-
-    // Validate the user's password
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(400).send("Invalid password");
-
-    // Create and assign a JWT token
-    const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
-    res.header("auth-token", token).send(token);
-  } catch (err) {
-    res.status(400).send(err);
+    console.error('Error creating game:', err);
+    res.status(500).json({ error: 'Error creating game' });
   }
 };

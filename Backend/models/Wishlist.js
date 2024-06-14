@@ -14,20 +14,16 @@ const wishlistSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  model: {
+    type: String,
+    required: true
+  },
   price: {
     type: Number,
     required: true
   },
-  progress: {
-    type: String,
-    default: "Not started"
-  },
-  review: {
-    type: String,
-    default: ""
-  },
   addedDate: {
-    type: Date,
+    type: Date, // Store the date when the game was added
     default: Date.now
   }
 });

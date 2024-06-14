@@ -1,3 +1,4 @@
+// verifyToken.js
 const jwt = require("jsonwebtoken");
 const User = require("./models/User");
 
@@ -10,7 +11,7 @@ const verifyToken = async (req, res, next) => {
     const user = await User.findById(decoded._id);
     if (!user) throw new Error("User not found");
 
-    req.user = user;
+    req.user = user; // Attach user object to request
     next();
   } catch (error) {
     console.error("Token verification error:", error);

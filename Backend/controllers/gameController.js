@@ -1,157 +1,101 @@
-// controllers/gameController.js
-const Game = require("../models/game");
-const User = require("../models/User");
+const jwt = require('jsonwebtoken');
+const Game = require('../models/game');
 
 exports.createGame = async (req, res) => {
-  const { console, model, year, game, price, progress, rating, review } = req.body;
   try {
-    const newGame = new Game({
-      userId: req.user._id,
+    // Extract relevant fields from req.body
+    const {
+      game,
       console,
       model,
       year,
+      price,
+      progress,
+      rating,
+      review
+    } = req.body;
+
+    // Extract userId from JWT token
+    const token = req.headers.authorization.split(' ')[1]; // Assuming token is in the format: Bearer <token>
+    const decodedToken = jwt.verify(token, JWT_SECRET);
+    const userId = decodedToken.userId;
+
+    // Create a new Game instance with userId extracted from the token
+    const newGame = new Game({
+      userId,
       game,
+      console,
+      model,
+      year,
       price,
       progress,
       rating,
       review
     });
+
+    // Save the new game to the database
     const savedGame = await newGame.save();
-
-    await User.findByIdAndUpdate(req.user._id, { $push: { games: savedGame._id } });
-
     res.status(201).json(savedGame);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while creating a game" });
+  } catch (err) {
+    console.error('Error creating game:', err);
+    res.status(500).json({ error: 'Error creating game' });
   }
 };
 
+// Controller method to get all games associated with the logged-in user
 exports.getAllGames = async (req, res) => {
   try {
-    const games = await Game.find();
+    // Fetch games where userId matches the logged-in user's ID
+    const games = await Game.find({ userId: req.user._id });
     res.status(200).json(games);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while fetching all games" });
+  } catch (err) {
+    console.error('Error fetching games:', err);
+    res.status(500).json({ error: 'Error fetching games' });
   }
 };
 
+// Controller method to get a single game by ID
 exports.getGame = async (req, res) => {
-  const gameId = req.params.id;
   try {
-    const game = await Game.findById(gameId);
+    const game = await Game.findById(req.params.id);
     if (!game) {
-      return res.status(404).json({ error: "Game not found" });
+      return res.status(404).json({ error: 'Game not found' });
     }
     res.status(200).json(game);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while fetching the game" });
+  } catch (err) {
+    console.error('Error fetching game:', err);
+    res.status(500).json({ error: 'Error fetching game' });
   }
 };
 
+// Controller method to update a game by ID
 exports.updateGame = async (req, res) => {
-  const gameId = req.params.id;
-  const updateData = req.body;
   try {
-    const updatedGame = await Game.findByIdAndUpdate(gameId, updateData, { new: true });
+    const updatedGame = await Game.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
     if (!updatedGame) {
-      return res.status(404).json({ error: "Game not found" });
+      return res.status(404).json({ error: 'Game not found' });
     }
     res.status(200).json(updatedGame);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while updating the game" });
+  } catch (err) {
+    console.error('Error updating game:', err);
+    res.status(500).json({ error: 'Error updating game' });
   }
 };
 
+// Controller method to delete a game by ID
 exports.deleteGame = async (req, res) => {
-  const gameId = req.params.id;
   try {
-    const deletedGame = await Game.findByIdAndDelete(gameId);
+    const deletedGame = await Game.findByIdAndDelete(req.params.id);
     if (!deletedGame) {
-      return res.status(404).json({ error: "Game not found" });
+      return res.status(404).json({ error: 'Game not found' });
     }
-    res.status(200).json({ message: "Game deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while deleting the game" });
-  }
-};
-
-exports.updateGameProgress = async (req, res) => {
-  const gameId = req.params.id;
-  const { progress } = req.body;
-  try {
-    const updatedGame = await Game.findByIdAndUpdate(gameId, { progress }, { new: true });
-    if (!updatedGame) {
-      return res.status(404).json({ error: "Game not found" });
-    }
-    res.status(200).json(updatedGame);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while updating game progress" });
-  }
-};
-exports.getGamesByEngine = async (req, res) => {
-  const engine = req.query.engine;
-  try {
-    const games = await Game.find({ engine });
-    res.status(200).json(games);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while fetching games by engine" });
-  }
-};
-
-exports.getGamesByPrice = async (req, res) => {
-  const { minPrice, maxPrice } = req.query;
-  try {
-    const games = await Game.find({ price: { $gte: minPrice, $lte: maxPrice } });
-    res.status(200).json(games);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while fetching games by price range" });
-  }
-};
-
-exports.getGamesByCompletionStatus = async (req, res) => {
-  const status = req.query.status;
-  try {
-    const games = await Game.find({ progress: status });
-    res.status(200).json(games);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while fetching games by completion status" });
-  }
-};
-
-exports.rateGame = async (req, res) => {
-  const gameId = req.params.id;
-  const { rating } = req.body;
-  try {
-    const game = await Game.findByIdAndUpdate(gameId, { rating }, { new: true });
-    if (!game) {
-      return res.status(404).json({ error: "Game not found" });
-    }
-    res.status(200).json(game);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while rating the game" });
-  }
-};
-
-exports.reviewGame = async (req, res) => {
-  const gameId = req.params.id;
-  const { review } = req.body;
-  try {
-    const game = await Game.findByIdAndUpdate(gameId, { review }, { new: true });
-    if (!game) {
-      return res.status(404).json({ error: "Game not found" });
-    }
-    res.status(200).json(game);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while reviewing the game" });
-  }
-};
-
-exports.getGamesByUserId = async (req, res) => {
-  const userId = req.params.userId;
-  try {
-    const games = await Game.find({ userId });
-    res.status(200).json(games);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while fetching games by user ID" });
+    res.status(200).json({ message: 'Game deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting game:', err);
+    res.status(500).json({ error: 'Error deleting game' });
   }
 };
